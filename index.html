@@ -1,30 +1,211 @@
-<!DOCTYPE html>
-<html lang="bg">
+<!doctype html>
+<html>
 <head>
-  <meta charset="UTF-8">
-  <title>DB – Материали</title>
+  <meta charset="utf-8" />
+  <title>Create Material</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 800px; margin: 2rem auto; }
+    label { display:block; margin-top: .5rem; }
+    input, textarea, select { width:100%; padding:.5rem; margin-top:.25rem; }
+    .supplier { border:1px solid #ddd; padding: .5rem; margin-top:.5rem; position: relative; }
+    .remove-supplier { position: absolute; right: .5rem; top: .5rem; cursor:pointer; color: red; }
+    button { margin-top: .5rem; padding:.6rem 1rem; }
+    .info { margin-top: .5rem; padding:.5rem; background:#f7f7f7; border:1px solid #eee; }
+  </style>
 </head>
 <body>
+  <h1>Create Material</h1>
 
-<h1>DB – Въвеждане на бои</h1>
+  <div id="auth-area">
+    <button id="sign-in-btn">Sign in (demo)</button>
+    <button id="sign-out-btn" style="display:none">Sign out</button>
+    <div id="user-info" class="info" style="display:none"></div>
+  </div>
 
-<form id="paintForm">
-  <input type="text" id="name" placeholder="Име на боята" required><br><br>
+  <form id="material-form">
+    <label>
+      Name
+      <input type="text" name="name" required />
+    </label>
 
-  <select id="category">
-    <option value="wet">Мокра</option>
-    <option value="dry">Суха</option>
-  </select><br><br>
+    <label>
+      Type
+      <input type="text" name="type" />
+    </label>
 
-  <input type="text" id="ral" placeholder="RAL код"><br><br>
-  <input type="text" id="ncs" placeholder="NCS код"><br><br>
+    <label>
+      Manufacturer Code
+      <input type="text" name="manufacturer_code" />
+    </label>
 
-  <button type="submit">Запиши</button>
-</form>
+    <label>
+      Base Unit
+      <input type="text" name="base_unit" value="pcs" />
+    </label>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="js/supabase.js"></script>
-<script src="js/paints.js"></script>
+    <label>
+      Dimensions (JSON) — e.g. {"length":2000,"width":600,"thickness":18}
+      <textarea name="dimensions" rows="3">{}</textarea>
+    </label>
 
+    <label>
+      Metadata (JSON)
+      <textarea name="metadata" rows="2">{}</textarea>
+    </label>
+
+    <h3>Suppliers</h3>
+    <div id="suppliers-list"></div>
+    <button type="button" id="add-supplier">Add supplier</button>
+
+    <div>
+      <button type="submit" id="submit-btn">Create</button>
+    </div>
+  </form>
+
+  <div id="result" class="info" style="display:none"></div>
+
+  <script type="module">
+    import { supabase } from './supabase.js';
+
+    const signInBtn = document.getElementById('sign-in-btn');
+    const signOutBtn = document.getElementById('sign-out-btn');
+    const userInfo = document.getElementById('user-info');
+    const form = document.getElementById('material-form');
+    const suppliersList = document.getElementById('suppliers-list');
+    const addSupplierBtn = document.getElementById('add-supplier');
+    const resultBox = document.getElementById('result');
+    const submitBtn = document.getElementById('submit-btn');
+
+    let suppliers = [];
+
+    function renderSuppliers() {
+      suppliersList.innerHTML = '';
+      suppliers.forEach((s, i) => {
+        const el = document.createElement('div');
+        el.className = 'supplier';
+        el.innerHTML = `
+          <div class="remove-supplier" data-i="${i}">✖</div>
+          <label>Supplier name <input data-i="${i}" data-field="name" value="${s.name||''}" /></label>
+          <label>Price <input data-i="${i}" data-field="price" value="${s.price||''}" /></label>
+          <label>Unit <input data-i="${i}" data-field="unit" value="${s.unit||'pcs'}" /></label>
+          <label>Note <input data-i="${i}" data-field="note" value="${s.note||''}" /></label>
+          <label><input type="checkbox" data-i="${i}" data-field="is_active" ${s.is_active? 'checked':''} /> Active</label>
+        `;
+        suppliersList.appendChild(el);
+      });
+    }
+
+    suppliersList.addEventListener('input', (e) => {
+      const idx = e.target.dataset.i;
+      const field = e.target.dataset.field;
+      if (idx == null || !field) return;
+      const val = (e.target.type === 'checkbox') ? e.target.checked : e.target.value;
+      suppliers[Number(idx)][field] = val;
+    });
+
+    suppliersList.addEventListener('click', (e) => {
+      const rem = e.target.closest('.remove-supplier');
+      if (!rem) return;
+      const i = Number(rem.dataset.i);
+      suppliers.splice(i,1);
+      renderSuppliers();
+    });
+
+    addSupplierBtn.onclick = () => {
+      suppliers.push({ name:'', price:0, unit:'pcs', note:'', is_active:true });
+      renderSuppliers();
+    };
+
+    // Simple demo sign-in (magic link or anonymous)
+    signInBtn.onclick = async () => {
+      // For quick demo, sign in anon via signUp with no email (creates guest session) — adjust as needed
+      const { data, error } = await supabase.auth.signInWithOAuth({ provider: 'github' }).catch(e => ({ error: e }));
+      if (error) {
+        alert('Sign in flow failed or cancelled. Use your Supabase auth instead.');
+        return;
+      }
+      // OAuth flow will redirect — in practice you'll implement proper auth
+    };
+
+    signOutBtn.onclick = async () => {
+      await supabase.auth.signOut();
+      updateAuth();
+    };
+
+    const updateAuth = async () => {
+      const { data: session } = await supabase.auth.getSession();
+      const user = session?.session?.user || null;
+      if (user) {
+        signInBtn.style.display = 'none';
+        signOutBtn.style.display = '';
+        userInfo.style.display = '';
+        userInfo.textContent = `Signed in: ${user.email || user.id}`;
+      } else {
+        signInBtn.style.display = '';
+        signOutBtn.style.display = 'none';
+        userInfo.style.display = 'none';
+        userInfo.textContent = '';
+      }
+    };
+
+    supabase.auth.onAuthStateChange(() => updateAuth());
+    updateAuth();
+
+    form.onsubmit = async (e) => {
+      e.preventDefault();
+      submitBtn.disabled = true;
+      resultBox.style.display = 'none';
+
+      const formData = new FormData(form);
+      const name = formData.get('name');
+      const type = formData.get('type');
+      const manufacturer_code = formData.get('manufacturer_code');
+      const base_unit = formData.get('base_unit');
+      let dimensions = {};
+      let metadata = {};
+      try { dimensions = JSON.parse(formData.get('dimensions') || '{}'); } catch (err) { return alert('Invalid JSON in dimensions'); }
+      try { metadata = JSON.parse(formData.get('metadata') || '{}'); } catch (err) { return alert('Invalid JSON in metadata'); }
+
+      // sanitize suppliers
+      const cleanedSuppliers = suppliers.map(s => ({
+        name: s.name,
+        price: s.price,
+        unit: s.unit,
+        note: s.note,
+        is_active: !!s.is_active,
+        conversion_factor: s.conversion_factor || '1'
+      }));
+
+      const payload = {
+        type, name, manufacturer_code, base_unit,
+        dimensions, metadata,
+        suppliers: cleanedSuppliers
+      };
+
+      // get jwt
+      const { data: session } = await supabase.auth.getSession();
+      const jwt = session?.session?.access_token || null;
+
+      try {
+        const FUNCTION_URL = '<YOUR_FUNCTION_URL>'; // replace with your deployed function URL
+        const res = await fetch(FUNCTION_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(jwt ? { 'Authorization': `Bearer ${jwt}` } : {})
+          },
+          body: JSON.stringify(payload)
+        });
+        const json = await res.json().catch(()=>({ status: res.status, text: 'non-json response' }));
+        resultBox.style.display = '';
+        resultBox.textContent = JSON.stringify(json, null, 2);
+      } catch (err) {
+        resultBox.style.display = '';
+        resultBox.textContent = 'Request failed: ' + err.message;
+      } finally {
+        submitBtn.disabled = false;
+      }
+    };
+  </script>
 </body>
 </html>

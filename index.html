@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+  <meta charset="UTF-8">
+  <title>DB – Материали</title>
+</head>
+<body>
+
+<h1>DB – Въвеждане на бои</h1>
+
+<form id="paintForm">
+  <input type="text" id="name" placeholder="Име на боята" required><br><br>
+
+  <select id="category">
+    <option value="wet">Мокра</option>
+    <option value="dry">Суха</option>
+  </select><br><br>
+
+  <input type="text" id="ral" placeholder="RAL код"><br><br>
+  <input type="text" id="ncs" placeholder="NCS код"><br><br>
+
+  <button type="submit">Запиши</button>
+</form>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase.js"></script>
+<script src="js/paints.js"></script>
+
+</body>
+</html>

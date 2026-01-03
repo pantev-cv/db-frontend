@@ -187,7 +187,7 @@
       const jwt = session?.session?.access_token || null;
 
       try {
-        const FUNCTION_URL = '<YOUR_FUNCTION_URL>'; // replace with your deployed function URL
+        const FUNCTION_URL = 'https://dtrokaqhgupubrofnndx.functions.supabase.co/materials-create'; // replace with your deployed function URL
         const res = await fetch(FUNCTION_URL, {
           method: 'POST',
           headers: {
